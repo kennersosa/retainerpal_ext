@@ -1,0 +1,19 @@
+api_version = "2025-07"
+uid = "edc19426-8049-b5f4-47e3-ba375116ce9f7d13e885"
+
+[[extensions]]
+name = "RetainerPal Intake Prompt"
+handle = "retainerpal-intake-prompt"
+type = "ui_extension"
+
+[extensions.capabilities]
+api_access = true
+network_access = true
+
+[[extensions.targeting]]
+target = "purchase.thank-you.block.render"
+module = "./src/IntakePrompt.jsx"
+
+  [[extensions.targeting.metafields]]
+  namespace = "retainerpal"
+  key = "intake_token"
