@@ -24,7 +24,7 @@ Based on the metafield (or fallback API response), customers see one of these ou
 2. RetainerPal backend/webhook generates intake token (or marks intake complete).
 3. Extension checks `retainerpal.intake_token` metafield.
 4. If missing, extension calls fallback API:
-	- `GET /api/shopify/intake-token?order_id=<order_id>`
+   - `GET /api/shopify/intake-token?order_id=<order_id>`
 5. Extension updates UI when token status becomes ready/completed.
 
 ## Project Structure
