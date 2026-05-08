@@ -1,78 +1,122 @@
-# Shopify App Template - Extension only
+# RetainerPal Shopify Checkout Extension
 
-This is a template for building an [extension-only Shopify app](https://shopify.dev/docs/apps/build/app-extensions/build-extension-only-app). It contains the basics for building a Shopify app that uses only app extensions.
+This repository contains the **RetainerPal checkout UI extension** that adds an intake prompt on Shopify's Thank You page.
 
-This template doesn't include a server or the ability to embed a page in the Shopify Admin. If you want either of these capabilities, choose the [Remix app template](https://github.com/Shopify/shopify-app-template-remix) instead.
+After a customer places an order, the block helps them complete a required intake form so the team can begin retainer production quickly.
 
-Whether you choose to use this template or another one, you can use your preferred package manager and the Shopify CLI with [these steps](#installing-the-template).
+## What This Extension Does
 
-## Benefits
+The extension renders a block at `purchase.thank-you.block.render` and checks for an app metafield:
 
-Shopify apps are built on a variety of Shopify tools to create a great merchant experience. The [create an app](https://shopify.dev/docs/apps/getting-started/create) tutorial in our developer documentation will guide you through creating a Shopify app.
+- Namespace: `retainerpal`
+- Key: `intake_token`
 
-This app template does little more than install the CLI and scaffold a repository.
+Based on the metafield (or fallback API response), customers see one of these outcomes:
 
-## Getting started
+1. `completed`: nothing is shown (block hidden)
+2. token present: info banner with a **Complete My Intake Form** button
+3. no token yet: loading spinner while polling
+4. polling timeout: fallback message asking the customer to refresh shortly
 
-### Requirements
+## How It Works
 
-1. You must [download and install Node.js](https://nodejs.org/en/download/) if you don't already have it.
-1. You must [create a Shopify partner account](https://partners.shopify.com/signup) if you don’t have one.
-1. You must create a store for testing if you don't have one, either a [development store](https://help.shopify.com/en/partners/dashboard/development-stores#create-a-development-store) or a [Shopify Plus sandbox store](https://help.shopify.com/en/partners/dashboard/managing-stores/plus-sandbox-store).
+1. Customer places order.
+2. RetainerPal backend/webhook generates intake token (or marks intake complete).
+3. Extension checks `retainerpal.intake_token` metafield.
+4. If missing, extension calls fallback API:
+	- `GET /api/shopify/intake-token?order_id=<order_id>`
+5. Extension updates UI when token status becomes ready/completed.
 
-### Installing the template
+## Project Structure
 
-This template can be installed using your preferred package manager:
+- `extensions/retainerpal-intake-prompt/src/IntakePrompt.jsx`: UI extension logic and rendering
+- `extensions/retainerpal-intake-prompt/shopify.extension.toml`: extension target/capabilities/metafield config
+- `shopify.app.toml`: Shopify app configuration
+- `docs/checkout-editor-setup.md`: instructions to add the block in Checkout Editor
 
-Using yarn:
+## Prerequisites
 
-```shell
-yarn create @shopify/app
+1. Node.js 18+
+2. npm (or another supported package manager)
+3. Shopify CLI installed and authenticated
+4. Shopify Partner account
+5. Development store (or Plus sandbox)
+6. A RetainerPal backend endpoint reachable by Shopify and checkout extension runtime
+
+## Setup
+
+1. Install dependencies:
+
+```bash
+npm install
 ```
 
-Using npm:
+2. Confirm Shopify app configuration in:
 
-```shell
-npm init @shopify/app@latest
-```
+- `shopify.app.toml`
+- `shopify.app.retainerpal-backend.toml` (if used in your environment)
 
-Using pnpm:
+3. Make sure the intake fallback API base URL in `IntakePrompt.jsx` points to your live backend (not a temporary tunnel).
 
-```shell
-pnpm create @shopify/app@latest
-```
+4. Start local development:
 
-This will clone the template and install the required dependencies.
-
-#### Local Development
-
-[The Shopify CLI](https://shopify.dev/docs/apps/tools/cli) connects to an app in your Partners dashboard. It provides environment variables and runs commands in parallel.
-
-You can develop locally using your preferred package manager. Run one of the following commands from the root of your app.
-
-Using yarn:
-
-```shell
-yarn dev
-```
-
-Using npm:
-
-```shell
+```bash
 npm run dev
 ```
 
-Using pnpm:
+5. Follow Shopify CLI prompts to select store/app and preview extension changes.
 
-```shell
-pnpm run dev
+## Deploy
+
+Deploy app + extension with:
+
+```bash
+npm run deploy
 ```
 
-Open the URL generated in your console. Once you grant permission to the app, you can start development (such as generating extensions).
+After successful deploy, configure checkout editor placement (next section).
 
-## Developer resources
+## Checkout Editor Setup
 
-- [Introduction to Shopify apps](https://shopify.dev/docs/apps/getting-started)
-- [App extensions](https://shopify.dev/docs/apps/build/app-extensions)
-- [Extension only apps](https://shopify.dev/docs/apps/build/app-extensions/build-extension-only-app)
-- [Shopify CLI](https://shopify.dev/docs/apps/tools/cli)
+Add this block to the Thank You page in the store's checkout customization:
+
+1. Shopify Admin -> Settings -> Checkout -> Customize
+2. Switch page selector to **Thank you**
+3. Add block: **RetainerPal Intake Prompt** (`intake-prompt`)
+4. Place above “Continue shopping”
+5. Save
+
+Detailed guide: `docs/checkout-editor-setup.md`
+
+## Scripts
+
+- `npm run dev`: run Shopify app dev workflow
+- `npm run build`: build app/extensions
+- `npm run deploy`: deploy app/extensions
+- `npm run info`: show app info from Shopify CLI
+- `npm run generate`: generate app resources
+
+## Troubleshooting
+
+### Block not visible in Checkout Editor
+
+- Confirm app is installed in target store
+- Confirm deploy completed without errors
+- Wait a minute for propagation and refresh editor
+
+### Button not shown after order
+
+- Check order metafield `retainerpal.intake_token`
+- Verify backend webhook/job processing and queue health
+- Confirm fallback API endpoint is reachable and returns expected status
+
+### Wrong intake URL
+
+- Ensure the backend domain used by the extension is correct
+- Avoid hardcoded temporary tunnel URLs in production
+
+## Security Notes
+
+- Do not commit secrets or private tokens
+- Keep backend endpoint and token validation logic protected
+- See `SECURITY.md` for reporting guidelines
