@@ -17,3 +17,10 @@ module = "./src/IntakePrompt.jsx"
   [[extensions.targeting.metafields]]
   namespace = "retainerpal"
   key = "intake_token"
+
+[extensions.settings]
+[[extensions.settings.fields]]
+key = "retainerpal_base_url"
+type = "single_line_text_field"
+name = "RetainerPal Base URL"
+description = "Backend URL (ngrok for dev, production URL for live)"

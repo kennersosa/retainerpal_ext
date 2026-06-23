@@ -4,22 +4,29 @@ import {
   Banner,
   Button,
   BlockStack,
+  InlineStack,
   Text,
   Spinner,
   useAppMetafields,
   useApi,
+  useSettings,
 } from '@shopify/ui-extensions-react/checkout';
 
 const POLL_INTERVAL_MS = 10000;
 const INITIAL_WAIT_MS = 6000;
 const MAX_ATTEMPTS = 10;
-const FALLBACK_BASE = 'https://ebe3-2402-a00-401-89c4-1810-7e03-7adc-80d4.ngrok-free.app/api/shopify/intake-token';
 
 function IntakePrompt() {
   const [state, setState] = useState('loading');
   const [token, setToken] = useState(null);
+  const [linkType, setLinkType] = useState('intake');
+  const [scanInfo, setScanInfo] = useState(null);
   const attemptsRef = useRef(0);
   const cancelledRef = useRef(false);
+
+  const { retainerpal_base_url: BASE_URL } = useSettings();
+  const POLL_URL = `${BASE_URL}/api/shopify/intake-token`;
+  const INTAKE_URL = `${BASE_URL}/intake/`;
 
   const api = useApi();
   console.log('[RetainerPal] api:', JSON.stringify(Object.keys(api)));
@@ -31,6 +38,7 @@ function IntakePrompt() {
       setState('completed');
     } else if (metafieldValue) {
       setToken(metafieldValue);
+      setLinkType('intake');   // metafield path is always standard intake
       setState('ready');
     }
   }, [metafieldValue]);
@@ -66,12 +74,12 @@ function IntakePrompt() {
 
         if (cancelledRef.current) return;
 
-        const res = await fetch(`${FALLBACK_BASE}?order_id=${numericId}`, {
+        const res = await fetch(`${POLL_URL}?order_id=${numericId}`, {
           headers: { Authorization: `Bearer ${sessionToken}` },
         });
 
         // ADD THIS
-        console.log('[RetainerPal] Fetching:', `${FALLBACK_BASE}?order_id=${numericId}`);
+        console.log('[RetainerPal] Fetching:', `${POLL_URL}?order_id=${numericId}`);
         console.log('[RetainerPal] sessionToken present:', !!sessionToken);
         if (cancelledRef.current) return;
 
@@ -86,6 +94,8 @@ function IntakePrompt() {
 
         if (data.status === 'ready') {
           setToken(data.token);
+          setLinkType(data.link_type ?? 'intake');
+          setScanInfo(data.scan_info ?? null);
           setState('ready');
         } else if (data.status === 'completed') {
           setState('completed');
@@ -112,12 +122,55 @@ function IntakePrompt() {
 
   if (state === 'completed') return null;
 
+  // Reorder confirmation — fires BEFORE standard intake render
+  if (state === 'ready' && linkType === 'reorder-confirmation') {
+    return (
+      <Banner title="Good news — we have your scan on file" status="success">
+        <BlockStack spacing="base">
+
+          {scanInfo && (
+            <Text>
+              {scanInfo.scan_type === 'upper'       ? 'Upper arch'          :
+               scanInfo.scan_type === 'lower'       ? 'Lower arch'          :
+               scanInfo.scan_type === 'both'        ? 'Upper and lower arches' :
+               scanInfo.scan_type}
+              {' '}&middot;{' '}{scanInfo.scan_date}
+              {' '}&middot;{' '}{scanInfo.scan_source}
+            </Text>
+          )}
+
+          <Text>
+            If your teeth have not changed since this scan was taken, we
+            can start making your retainer right now — no forms needed.
+          </Text>
+
+          <InlineStack spacing="base">
+            <Button
+              to={`${INTAKE_URL}${token}`}
+              appearance="monochrome"
+            >
+              My teeth are the same — start my retainer
+            </Button>
+            <Button
+              to={`${INTAKE_URL}${token}?declined=1`}
+              appearance="monochrome"
+              kind="secondary"
+            >
+              My teeth have changed
+            </Button>
+          </InlineStack>
+
+        </BlockStack>
+      </Banner>
+    );
+  }
+
   if (state === 'ready') {
     return (
       <Banner title="One more step to start your order" status="info">
         <BlockStack spacing="base">
           <Text>Complete your quick intake form so we can start manufacturing your retainers as fast as possible.</Text>
-          <Button to={`https://ebe3-2402-a00-401-89c4-1810-7e03-7adc-80d4.ngrok-free.app/intake/${token}`} appearance="monochrome">
+          <Button to={`${INTAKE_URL}${token}`} appearance="monochrome">
             Complete My Intake Form
           </Button>
         </BlockStack>
